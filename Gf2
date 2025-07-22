@@ -1,115 +1,50 @@
--- // Anti-Cheat Bypass & Magnet Catching Only // --
-
--- LPH wrapper
-loadstring([[function LPH_NO_VIRTUALIZE(f) return f end]])()
+-- // Minimal Magnet Catching System // --
 
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 local Humanoid = Character:WaitForChild("Humanoid")
 local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
-local Remote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CharacterSoundEvent")
-local AC_BYPASS = false
 
--- Anti-Cheat bypass
-if game.PlaceId == 8204899140 then
-    local Handshake, ShuffleFunction
-
-    local function AntiCheatCaller(caller_script_info)
-        local success, consts = pcall(debug.getconstants, caller_script_info.func)
-        if not success then return false end
-        return typeof(consts[1]) == "string" and consts[1]:match("_______________________________")
-    end
-
-    local function MaxAntiCheatCaller()
-        for i = 1, 50 do
-            if not debug.isvalidlevel(i) then break end
-            local info = debug.getinfo(i)
-            if info and AntiCheatCaller(info) then return true end
-        end
-        return false
-    end
-
-    hookmetamethod(game, "__namecall", LPH_NO_VIRTUALIZE(function(self, ...)
-        local args, method = {...}, getnamecallmethod()
-        if (method == "FireServer" and typeof(args[3]) == "string" and args[3]:match("catch")) or
-           (method == "Kick" and typeof(args[3]) == "string" and MaxAntiCheatCaller()) then
-            return coroutine.yield()
-        end
-        return getmetatable(game).__namecall(self, ...)
-    end))
-
-    for _, fn in next, getgc(true) do
-        if type(fn) == "function" and debug.getinfo(fn).source:find("PlayerModule.LocaIScript") and debug.getinfo(fn).numparams == 8 then
-            ShuffleFunction = fn
-        end
-    end
-
-    if ShuffleFunction then
-        hookfunction(ShuffleFunction, LPH_NO_VIRTUALIZE(function(...) return coroutine.yield() end))
-    end
-
-    for _, fn in next, getgc(true) do
-        if type(fn) == "function" and debug.getinfo(fn).source:find("PlayerModule.LocaIScript") then
-            for _, upvalue in next, getupvalues(fn) do
-                if type(upvalue) == "table" and rawget(upvalue, 19) then
-                    local mt = getrawmetatable(upvalue)
-                    if mt then rawset(mt, "__tostring", nil) end
-                    Handshake = upvalue
-                end
-            end
-        end
-    end
-
-    task.spawn(function()
-        while task.wait(0.5) do
-            if Handshake then
-                Remote:FireServer("🖑🌅💏", Handshake, nil)
-            end
-        end
-    end)
-
-    AC_BYPASS = true
-end
-
--- Magnet Catching
 local ViseHub = {
     Magnets = {
         Enabled = true,
         ShowMagHitbox = true,
         Radius = 15,
         Delay = 0.1,
-        Visuals = { Transparency = 0.5 }
+        Visuals = {
+            Transparency = 0.5
+        }
     }
 }
 
 local Hitbox = Instance.new("Part")
-Hitbox.Transparency = 0.5
 Hitbox.Anchored = true
 Hitbox.CanCollide = false
 Hitbox.CastShadow = false
 Hitbox.Material = Enum.Material.ForceField
 Hitbox.Shape = Enum.PartType.Ball
 Hitbox.Color = Color3.fromRGB(255, 217, 253)
+Hitbox.Name = "MagHitbox"
 
 local function firetouchinterestv2(part, transmitter, value)
     if part and transmitter then
         if value == 0 then
-            TweenService:Create(part, TweenInfo.new(0), {Position = transmitter.Position}):Play()
+            local tween = TweenService:Create(part, TweenInfo.new(0), {Position = transmitter.Position})
+            tween:Play()
         end
     end
 end
 
 local function findClosestFootball()
     local closest, shortest = nil, math.huge
-    for _, v in pairs(workspace:GetChildren()) do
-        if v.Name == "Football" and v:IsA("BasePart") then
-            local dist = (v.Position - HumanoidRootPart.Position).Magnitude
+    for _, obj in ipairs(workspace:GetChildren()) do
+        if obj.Name == "Football" and obj:IsA("BasePart") then
+            local dist = (obj.Position - HumanoidRootPart.Position).Magnitude
             if dist < shortest then
-                closest, shortest = v, dist
+                closest = obj
+                shortest = dist
             end
         end
     end
@@ -119,6 +54,7 @@ end
 task.spawn(function()
     while task.wait() do
         if not ViseHub.Magnets.Enabled then continue end
+
         local ball = findClosestFootball()
         if not ball then continue end
 
